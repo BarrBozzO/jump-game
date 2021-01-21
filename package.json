@@ -1,0 +1,14 @@
+{
+  "name": "jump-game",
+  "version": "1.0.0",
+  "main": "index.html",
+  "repository": "git@github.com:BarrBozzO/jump-game.git",
+  "author": "Constantine <barr.develop@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "parcel serve ./index.html"
+  },
+  "devDependencies": {
+    "typescript": "^4.1.3"
+  }
+}

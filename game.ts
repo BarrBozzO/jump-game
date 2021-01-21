@@ -224,7 +224,7 @@ class State {
         nextY -=
           (State.JUMP_LENGTH * rangeFromJumpStart -
             Math.pow(rangeFromJumpStart, 2)) /
-          (State.JUMP_LENGTH * 0.4);
+          (State.JUMP_LENGTH * 0.45);
         nextJump = state.player.jump;
         // debugger;
       }
@@ -240,7 +240,7 @@ class State {
       .map((barrier, index) => {
         return {
           ...barrier,
-          x: barrier.x - 1,
+          x: barrier.x - State.GAME_SPEED,
         };
       })
       .filter((barrier) => barrier.x + barrier.w >= 0);
