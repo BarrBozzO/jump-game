@@ -29,7 +29,7 @@ var Drawer = /** @class */ (function () {
     Drawer.prototype.render = function (state) {
         // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.drawBackdrop(state);
-        this.drawPlayer(state);
+        this.drawPlayer(state.player);
         this.drawBarriers(state.barriers);
     };
     Drawer.prototype.drawClouds = function (state) {
@@ -64,15 +64,8 @@ var Drawer = /** @class */ (function () {
     };
     Drawer.prototype.drawPlayer = function (state) {
         var ctx = this.context;
-        var jumpLength = 50;
-        console.log(state.world);
         ctx.beginPath();
-        ctx.rect(state.player.x, state.player.y -
-            (state.player.jump !== null
-                ? state.world.x - state.player.jump.init >= jumpLength
-                    ? 1
-                    : state.world.x - state.player.jump.init
-                : 0), 20, 40);
+        ctx.rect(state.x, state.y, 20, 40);
         ctx.fillStyle = Drawer.COLORS.player;
         ctx.fill();
         ctx.closePath();
@@ -99,9 +92,8 @@ var Drawer = /** @class */ (function () {
     };
     return Drawer;
 }());
-var DrawArea = /** @class */ (function () {
-    function DrawArea(canvasDomId) {
-        if (canvasDomId === void 0) { canvasDomId = ""; }
+var State = /** @class */ (function () {
+    function State(dimensions) {
         this.state = {
             clouds: [
                 {
@@ -128,61 +120,54 @@ var DrawArea = /** @class */ (function () {
                 status: "started"
             }
         };
-        var canvas = document.getElementById("" + canvasDomId);
-        this.drawer = new Drawer(canvas);
-        this.canvas = canvas;
+        this.dimensions = __assign({}, dimensions);
     }
-    DrawArea.prototype.init = function () {
-        var $this = this;
-        this.interval = setInterval(this.render.bind(this), 10);
-        document.addEventListener("keydown", function (e) {
-            console.log(e.code);
-            if (e.code === "Pause") {
-                $this.togglePause();
-            }
-            if (e.code === "Space") {
-                $this.toggleJump();
-            }
-        });
-    };
-    DrawArea.prototype.togglePause = function () {
+    State.prototype.togglePause = function () {
         this.state.game.status =
             this.state.game.status === "paused" ? "started" : "paused";
     };
-    DrawArea.prototype.toggleJump = function () {
+    State.prototype.toggleJump = function () {
         if (this.state.player.jump === null) {
-            console.log(this.state.player.jump);
             this.state.player.jump = {
                 init: this.state.world.x
             };
         }
     };
-    DrawArea.prototype.render = function () {
-        this.calculateState();
-        this.drawer.render(this.state);
-    };
-    DrawArea.prototype.calculateState = function () {
+    State.prototype.calculate = function () {
         var _this = this;
-        var _a = this.canvas, width = _a.width, height = _a.height;
         var state = this.state;
         var nextState = __assign({}, this.state);
         if (state.game.status === "paused") {
             return;
         }
-        nextState.world = __assign(__assign({}, this.state.world), { x: this.state.world.x + 1 });
+        nextState.world = __assign(__assign({}, this.state.world), { x: this.state.world.x + State.GAME_SPEED });
         // clouds
         state.clouds.forEach(function (cloud, index) {
             nextState.clouds[index].x =
-                cloud.x < -100 ? _this.canvas.width + 10 : cloud.x - 1;
+                cloud.x < -100 ? _this.dimensions.w + 10 : cloud.x - State.CLOUD_SPEED;
         });
         // player
+        var DEFAULT_X = 50;
+        var DEFAULT_Y = this.dimensions.h - 60;
+        var isJumping = Boolean(state.player.jump);
+        var nextY = DEFAULT_Y;
+        var nextJump = null;
+        if (isJumping) {
+            // y = (-x^2 + 50x) / 5
+            var rangeFromJumpStart = state.world.x - state.player.jump.init;
+            if (rangeFromJumpStart <= State.JUMP_LENGTH) {
+                nextY -=
+                    (State.JUMP_LENGTH * rangeFromJumpStart -
+                        Math.pow(rangeFromJumpStart, 2)) /
+                        (State.JUMP_LENGTH * 0.4);
+                nextJump = state.player.jump;
+                // debugger;
+            }
+        }
         nextState.player = {
-            x: 50,
-            y: height - 60,
-            jump: state.player.jump === null ||
-                state.world.x - state.player.jump.init > 100
-                ? null
-                : state.player.jump
+            x: DEFAULT_X,
+            y: nextY,
+            jump: nextJump
         };
         // barriers
         nextState.barriers = state.barriers
@@ -192,13 +177,43 @@ var DrawArea = /** @class */ (function () {
             .filter(function (barrier) { return barrier.x + barrier.w >= 0; });
         if (nextState.barriers.length < 1 && Math.random() % 10) {
             nextState.barriers.push({
-                x: width + 20,
-                y: height - 60,
+                x: this.dimensions.w + 20,
+                y: this.dimensions.h - 60,
                 w: 20,
                 h: 40
             });
         }
         this.state = __assign({}, nextState);
+        return nextState;
+    };
+    State.GAME_SPEED = 2;
+    State.CLOUD_SPEED = 2;
+    State.JUMP_LENGTH = 150;
+    return State;
+}());
+var DrawArea = /** @class */ (function () {
+    function DrawArea(canvasDomId) {
+        if (canvasDomId === void 0) { canvasDomId = ""; }
+        var canvas = document.getElementById("" + canvasDomId);
+        this.drawer = new Drawer(canvas);
+        this.canvas = canvas;
+        this.state = new State({ w: canvas.width, h: canvas.height });
+    }
+    DrawArea.prototype.init = function () {
+        var $this = this;
+        this.interval = setInterval(this.render.bind(this), 10);
+        document.addEventListener("keydown", function (e) {
+            if (e.code === "Pause") {
+                $this.state.togglePause();
+            }
+            if (e.code === "Space") {
+                $this.state.toggleJump();
+            }
+        });
+    };
+    DrawArea.prototype.render = function () {
+        var currentState = this.state.calculate();
+        this.drawer.render(currentState);
     };
     DrawArea.prototype.destroy = function () {
         this.interval = null;

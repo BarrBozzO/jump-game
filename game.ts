@@ -64,7 +64,7 @@ class Drawer {
   render(state: StateType) {
     // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.drawBackdrop(state);
-    this.drawPlayer(state);
+    this.drawPlayer(state.player);
     this.drawBarriers(state.barriers);
   }
 
@@ -106,25 +106,11 @@ class Drawer {
     ctx.closePath();
   }
 
-  private drawPlayer(state: StateType) {
+  private drawPlayer(state: PlayerStateType) {
     const ctx = this.context;
 
-    const jumpLength = 50;
-
-    console.log(state.world);
-
     ctx.beginPath();
-    ctx.rect(
-      state.player.x,
-      state.player.y -
-        (state.player.jump !== null
-          ? state.world.x - state.player.jump.init >= jumpLength
-            ? 1
-            : state.world.x - state.player.jump.init
-          : 0),
-      20,
-      40
-    );
+    ctx.rect(state.x, state.y, 20, 40);
     ctx.fillStyle = Drawer.COLORS.player;
     ctx.fill();
     ctx.closePath();
@@ -149,10 +135,15 @@ class Drawer {
   }
 }
 
-class DrawArea {
-  private canvas: HTMLCanvasElement;
-  private drawer: Drawer;
-  private interval: number | null;
+class State {
+  static GAME_SPEED = 2;
+  static CLOUD_SPEED = 2;
+  static JUMP_LENGTH = 150;
+
+  private dimensions: {
+    w: number;
+    h: number;
+  };
   private state: StateType = {
     clouds: [
       {
@@ -180,52 +171,24 @@ class DrawArea {
     },
   };
 
-  constructor(canvasDomId: string = "") {
-    const canvas = document.getElementById(
-      `${canvasDomId}`
-    ) as HTMLCanvasElement;
-    this.drawer = new Drawer(canvas);
-    this.canvas = canvas;
+  constructor(dimensions) {
+    this.dimensions = { ...dimensions };
   }
 
-  init() {
-    const $this = this;
-    this.interval = setInterval(this.render.bind(this), 10);
-
-    document.addEventListener("keydown", (e) => {
-      console.log(e.code);
-      if (e.code === "Pause") {
-        $this.togglePause();
-      }
-
-      if (e.code === "Space") {
-        $this.toggleJump();
-      }
-    });
-  }
-
-  private togglePause() {
+  public togglePause() {
     this.state.game.status =
       this.state.game.status === "paused" ? "started" : "paused";
   }
 
-  private toggleJump() {
+  public toggleJump() {
     if (this.state.player.jump === null) {
-      console.log(this.state.player.jump);
       this.state.player.jump = {
         init: this.state.world.x,
       };
     }
   }
 
-  private render() {
-    this.calculateState();
-    this.drawer.render(this.state);
-  }
-
-  private calculateState() {
-    const { width, height } = this.canvas;
-
+  calculate() {
     const state = this.state;
     const nextState = {
       ...this.state,
@@ -237,24 +200,39 @@ class DrawArea {
 
     nextState.world = {
       ...this.state.world,
-      x: this.state.world.x + 1,
+      x: this.state.world.x + State.GAME_SPEED,
     };
 
     // clouds
     state.clouds.forEach((cloud, index) => {
       nextState.clouds[index].x =
-        cloud.x < -100 ? this.canvas.width + 10 : cloud.x - 1;
+        cloud.x < -100 ? this.dimensions.w + 10 : cloud.x - State.CLOUD_SPEED;
     });
 
     // player
+    const DEFAULT_X = 50;
+    const DEFAULT_Y = this.dimensions.h - 60;
+    const isJumping = Boolean(state.player.jump);
+
+    let nextY = DEFAULT_Y;
+    let nextJump = null;
+
+    if (isJumping) {
+      // y = (-x^2 + 50x) / 5
+      const rangeFromJumpStart = state.world.x - state.player.jump.init;
+      if (rangeFromJumpStart <= State.JUMP_LENGTH) {
+        nextY -=
+          (State.JUMP_LENGTH * rangeFromJumpStart -
+            Math.pow(rangeFromJumpStart, 2)) /
+          (State.JUMP_LENGTH * 0.4);
+        nextJump = state.player.jump;
+        // debugger;
+      }
+    }
     nextState.player = {
-      x: 50,
-      y: height - 60,
-      jump:
-        state.player.jump === null ||
-        state.world.x - state.player.jump.init > 100
-          ? null
-          : state.player.jump,
+      x: DEFAULT_X,
+      y: nextY,
+      jump: nextJump,
     };
 
     // barriers
@@ -269,8 +247,8 @@ class DrawArea {
 
     if (nextState.barriers.length < 1 && Math.random() % 10) {
       nextState.barriers.push({
-        x: width + 20,
-        y: height - 60,
+        x: this.dimensions.w + 20,
+        y: this.dimensions.h - 60,
         w: 20,
         h: 40,
       });
@@ -279,6 +257,44 @@ class DrawArea {
     this.state = {
       ...nextState,
     };
+
+    return nextState;
+  }
+}
+
+class DrawArea {
+  private canvas: HTMLCanvasElement;
+  private drawer: Drawer;
+  private interval: number | null;
+  private state: State;
+
+  constructor(canvasDomId: string = "") {
+    const canvas = document.getElementById(
+      `${canvasDomId}`
+    ) as HTMLCanvasElement;
+    this.drawer = new Drawer(canvas);
+    this.canvas = canvas;
+    this.state = new State({ w: canvas.width, h: canvas.height });
+  }
+
+  init() {
+    const $this = this;
+    this.interval = setInterval(this.render.bind(this), 10);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Pause") {
+        $this.state.togglePause();
+      }
+
+      if (e.code === "Space") {
+        $this.state.toggleJump();
+      }
+    });
+  }
+
+  private render() {
+    const currentState = this.state.calculate();
+    this.drawer.render(currentState);
   }
 
   destroy() {
