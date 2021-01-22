@@ -49,11 +49,20 @@ type StateType = {
   score: number;
 };
 
-const PLAYER_SIZE = [20, 40];
-const BARRIER_SIZE = [20, 40];
+type LayerType = {
+  id: string;
+  dom: HTMLCanvasElement;
+};
+
+const PLAYER_SIZE = [40, 80];
+const BARRIER_SIZE = [40, 80];
 
 class Drawer {
-  private canvas: HTMLCanvasElement;
+  private gameDomEl: HTMLElement;
+  private layers: {
+    [key: string]: LayerType;
+  } = {};
+  private layersOrder: string[] = [];
 
   static COLORS = {
     ground: "#ff0000",
@@ -62,105 +71,203 @@ class Drawer {
     player: "#ff33ee",
   };
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.canvas = canvas;
+  constructor(domElement: HTMLElement) {
+    this.gameDomEl = domElement;
+
+    ["backdrop", "clouds", "score", "barriers", "player", "message"].forEach(
+      (layerId) => {
+        this.createLayer(layerId);
+      }
+    );
+
+    this.drawBackdrop();
   }
 
-  get context() {
-    return this.canvas.getContext("2d");
+  public reset() {
+    ["clouds", "score", "barriers", "player", "message"].forEach((layerId) => {
+      const ctx = this.getLayerContext(layerId);
+      ctx.clearRect(0, 0, this.dimensions.w, this.dimensions.h);
+    });
   }
 
-  private getAreaDimensions(): { width: number; height: number } {
-    return {
-      width: this.canvas.width,
-      height: this.canvas.height,
+  private createLayer(id: string) {
+    const newCanvas = document.createElement("canvas");
+    newCanvas.width = this.dimensions.w;
+    newCanvas.height = this.dimensions.h;
+    newCanvas.setAttribute("id", id);
+
+    newCanvas.style["position"] = "absolute";
+    newCanvas.style["top"] = "0";
+    newCanvas.style["left"] = "0";
+
+    this.layers[id] = {
+      id: id,
+      dom: newCanvas,
     };
+    this.layersOrder.push(id);
+    this.gameDomEl.append(newCanvas);
   }
 
-  render(state: StateType) {
-    // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.drawBackdrop(state);
-    this.drawPlayer(state.player);
-    this.drawBarriers(state.barriers);
+  getLayerContext(id: string) {
+    return this.layers[id].dom.getContext("2d");
   }
 
-  private drawClouds(state: CloudsStateType) {
-    const ctx = this.context;
+  get dimensions() {
+    return { w: this.gameDomEl.offsetWidth, h: this.gameDomEl.offsetHeight };
+  }
 
-    state.forEach((cloud, index) => {
+  render({ current: currentState, prev: prevState }) {
+    this.drawClouds(currentState, prevState);
+    this.drawPlayer(currentState, prevState);
+    this.drawBarriers(currentState, prevState);
+    this.drawScore(currentState.score, currentState.game.status);
+    this.drawMessage(currentState, prevState);
+  }
+
+  private drawScore(score: number, gameStatus: GAME_STATUS_VALUE) {
+    if (gameStatus === GAME_STATUS.PAUSE) {
+      return;
+    }
+
+    const ctx = this.getLayerContext("score");
+    ctx.clearRect(0, 0, this.dimensions.w, 32);
+
+    if (gameStatus === GAME_STATUS.OVER) {
+      return;
+    }
+
+    ctx.font = "18px sans-serif";
+    ctx.strokeStyle = " #2e2e2e";
+    ctx.lineWidth = 2;
+    const text = "score: " + score;
+    ctx.strokeText(
+      text,
+      this.dimensions.w - 80 - score.toString().length * 10,
+      30
+    );
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(
+      text,
+      this.dimensions.w - 80 - score.toString().length * 10,
+      30
+    );
+  }
+
+  private drawMessage(state: StateType, prev: StateType) {
+    const ctx = this.getLayerContext("message");
+
+    const { w, h } = this.dimensions;
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (state.game.status === GAME_STATUS.OVER) {
+      ctx.font = "24px sans-serif";
+      const message = "GAME OVER";
+      const textMes = ctx.measureText(message);
+      ctx.fillText(message, w / 2 - textMes.width / 2, h / 2);
+
+      ctx.font = "14px sans-serif";
+      const messageScore = `YOUR SCORE IS ${state.score}`;
+      const textMesScore = ctx.measureText(messageScore);
+      ctx.fillText(messageScore, w / 2 - textMesScore.width / 2, h / 2 + 24);
+
+      ctx.font = "14px sans-serif";
+      const messageSpace = `Press SPACE to play again`;
+      const textMesSpace = ctx.measureText(messageSpace);
+      ctx.fillText(messageSpace, w / 2 - textMesSpace.width / 2, h / 2 + 48);
+    }
+  }
+
+  private drawClouds(state: StateType, prev: StateType) {
+    if (
+      state.game.status !== GAME_STATUS.PLAY &&
+      state.game.status === prev.game.status
+    ) {
+      return;
+    }
+
+    const ctx = this.getLayerContext("clouds");
+    ctx.clearRect(0, 0, this.dimensions.w, this.dimensions.h);
+
+    state.clouds.forEach((cloud, index) => {
       ctx.beginPath();
       ctx.arc(cloud.x, cloud.y, 10, 0, Math.PI * 2);
       ctx.fillStyle = Drawer.COLORS.cloud;
       ctx.fill();
       ctx.closePath();
-
-      //   const { width } = this.getAreaDimensions();
-      //   state[index].x = cloud.x < -100 ? width + 10 : cloud.x - 1;
-      //   this.state.clouds[index].y = cloud.y + 1;
     });
   }
 
-  private drawBackdrop(state: StateType) {
-    const ctx = this.context;
+  private drawBackdrop() {
+    const ctx = this.getLayerContext("backdrop");
 
-    const { width, height } = this.getAreaDimensions();
+    const { w, h } = this.dimensions;
 
     // sky
     ctx.beginPath();
-    ctx.rect(0, 0, width, height);
+    ctx.rect(0, 0, w, h);
     ctx.fillStyle = Drawer.COLORS.sky;
     ctx.fill();
     ctx.closePath();
 
-    this.drawClouds(state.clouds);
-
     // ground
     ctx.beginPath();
-    ctx.rect(0, height - 40, width, 40);
+    ctx.rect(0, h - 40, w, 40);
     ctx.fillStyle = Drawer.COLORS.ground;
     ctx.fill();
     ctx.closePath();
   }
 
-  private drawPlayer(state: PlayerStateType) {
-    const ctx = this.context;
+  private drawPlayer(state: StateType, prev: StateType) {
+    if (
+      state.game.status !== GAME_STATUS.PLAY &&
+      state.game.status === prev.game.status
+    ) {
+      return;
+    }
+
+    const ctx = this.getLayerContext("player");
+
+    ctx.clearRect(prev.player.x, prev.player.y, PLAYER_SIZE[0], PLAYER_SIZE[1]);
 
     ctx.beginPath();
-    ctx.rect(state.x, state.y, PLAYER_SIZE[0], PLAYER_SIZE[1]);
+    ctx.rect(state.player.x, state.player.y, PLAYER_SIZE[0], PLAYER_SIZE[1]);
     ctx.fillStyle = Drawer.COLORS.player;
     ctx.fill();
     ctx.closePath();
   }
 
-  private drawBarriers(state: BarriersStateType) {
-    const ctx = this.context;
+  private drawBarriers(state: StateType, prev: StateType) {
+    if (
+      state.game.status !== GAME_STATUS.PLAY &&
+      state.game.status === prev.game.status
+    ) {
+      return;
+    }
 
-    state.forEach((barrier, index) => {
-      //   const { width } = this.getAreaDimensions();
+    const ctx = this.getLayerContext("barriers");
 
+    prev.barriers.forEach((barrier, index) => {
+      ctx.clearRect(barrier.x + 2, barrier.y, BARRIER_SIZE[0], BARRIER_SIZE[1]);
+    });
+
+    state.barriers.forEach((barrier, index) => {
       ctx.beginPath();
       ctx.rect(barrier.x, barrier.y, BARRIER_SIZE[0], BARRIER_SIZE[1]);
       ctx.fillStyle = Drawer.COLORS.cloud;
       ctx.fill();
       ctx.closePath();
-
-      //   state[index].x =
-      //     barrier.x < -100 ? width + 10 : barrier.x - 1;
-      //   this.state.clouds[index].y = cloud.y + 1;
     });
   }
 }
 
 class State {
-  static GAME_SPEED = 2;
+  static GAME_SPEED = 10;
+  static BARRIER_SPEED = 10;
   static CLOUD_SPEED = 2;
-  static JUMP_LENGTH = 150;
+  static JUMP_LENGTH = 200;
 
-  private dimensions: {
-    w: number;
-    h: number;
-  };
-  private state: StateType = {
+  static getInitState = () => ({
     clouds: [
       {
         x: 20,
@@ -186,7 +293,14 @@ class State {
       status: GAME_STATUS.PLAY as GAME_STATUS_VALUE,
     },
     score: 0,
+  });
+
+  private prevState: string = "";
+  private dimensions: {
+    w: number;
+    h: number;
   };
+  private state: StateType = State.getInitState();
 
   constructor(dimensions) {
     this.dimensions = { ...dimensions };
@@ -206,8 +320,12 @@ class State {
     }
   }
 
+  public togglePlayAgain() {
+    this.resetState();
+  }
+
   get() {
-    return this.state;
+    return { current: this.state, prev: JSON.parse(this.prevState) };
   }
 
   calculate() {
@@ -215,6 +333,8 @@ class State {
     const nextState = {
       ...this.state,
     };
+
+    this.prevState = JSON.stringify(this.state);
 
     if (
       state.game.status === GAME_STATUS.OVER ||
@@ -249,6 +369,12 @@ class State {
     return nextState;
   }
 
+  private resetState() {
+    // debugger;
+    // this.prevState = JSON.stringify(this.state);
+    this.state = State.getInitState();
+  }
+
   private calculateScore(state: StateType) {
     return state.score + 1;
   }
@@ -265,32 +391,6 @@ class State {
     player: PlayerStateType,
     barriers: BarriersStateType
   ) {
-    /*
-#include <algorithm>
-
-
-    x1, y1 - левая нижняя точка первого прямоугольника
-    x2, y2 - правая верхняя точка первого прямоугольника
-    x3, y3 - левая нижняя точка второго прямоугольника
-    x4, y4 - правая верхняя точка второго прямоугольника
-
-int f(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4)
-{
-    int left = std::max(x1, x3);
-    int top = std::min(y2, y4);
-    int right = std::min(x2, x4);
-    int bottom = std::max(y1, y3);
-
-    int width = right - left;
-    int height = top - bottom;
-
-    if (width < 0 || height < 0)
-        return 0;
-
-    return width * height;
-}
-**/
-
     const isGameOver = barriers.some((barrier) => {
       const leftBottomPlayer = [player.x, player.y];
       const rightTopPlayer = [
@@ -329,8 +429,8 @@ int f(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4)
   }
 
   private calculatePlayer(state: StateType) {
-    const DEFAULT_X = 50;
-    const DEFAULT_Y = this.dimensions.h - 60;
+    const DEFAULT_X = PLAYER_SIZE[0] * 2;
+    const DEFAULT_Y = this.dimensions.h - PLAYER_SIZE[1] * 1.5;
     const isJumping = Boolean(state.player.jump);
 
     let nextY = DEFAULT_Y;
@@ -340,10 +440,11 @@ int f(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4)
       // y = (-x^2 + 50x) / 5
       const rangeFromJumpStart = state.world.x - state.player.jump.init;
       if (rangeFromJumpStart <= State.JUMP_LENGTH) {
-        nextY -=
+        nextY -= Math.round(
           (State.JUMP_LENGTH * rangeFromJumpStart -
             Math.pow(rangeFromJumpStart, 2)) /
-          (State.JUMP_LENGTH * 0.45);
+            (State.JUMP_LENGTH * 0.35)
+        );
         nextJump = state.player.jump;
       }
     }
@@ -361,43 +462,55 @@ int f(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4)
       .map((barrier, index) => {
         return {
           ...barrier,
-          x: barrier.x - State.GAME_SPEED,
+          x: barrier.x - State.BARRIER_SPEED,
         };
       })
       .filter((barrier) => barrier.x + barrier.w >= 0);
 
-    if (result.length < 1 && Math.random() % 10) {
-      result.push({
-        x: this.dimensions.w + 20,
-        y: this.dimensions.h - 60,
-        w: 20,
-        h: 40,
-      });
+    const barrirStateEntity = {
+      x: this.dimensions.w + BARRIER_SIZE[0],
+      y: this.dimensions.h - BARRIER_SIZE[1] * 1.5,
+      w: BARRIER_SIZE[0],
+      h: BARRIER_SIZE[1],
+    };
+
+    if (result.length < 1 && this.getRandomInt(0, 100) % 10 === 0) {
+      result.push(barrirStateEntity);
+    } else if (result.length === 1) {
+      if (this.dimensions.w - result[0].x >= 150) {
+        if (this.getRandomInt(0, 100) % 30 === 0) {
+          result.push(barrirStateEntity);
+        }
+      }
     }
 
     return result;
   }
+
+  private getRandomInt(min: number, max: number) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min)) + min;
+  }
 }
 
-class DrawArea {
-  private canvas: HTMLCanvasElement;
+class Game {
+  private gameDomEl: HTMLElement;
   private drawer: Drawer;
-  private interval: number | null;
   private state: State;
 
-  constructor(canvasDomId: string = "") {
-    const canvas = document.getElementById(
-      `${canvasDomId}`
-    ) as HTMLCanvasElement;
-    this.drawer = new Drawer(canvas);
-    this.canvas = canvas;
-    this.state = new State({ w: canvas.width, h: canvas.height });
+  constructor(domId: string = "") {
+    this.gameDomEl = document.getElementById(`${domId}`) as HTMLElement;
+    this.drawer = new Drawer(this.gameDomEl);
+    this.state = new State({
+      w: this.gameDomEl.offsetWidth,
+      h: this.gameDomEl.offsetHeight,
+    });
   }
 
   init() {
     const $this = this;
-    this.initState();
-    this.render();
+    this.play();
 
     document.addEventListener("keydown", (e) => {
       if (e.code === "Pause") {
@@ -405,25 +518,31 @@ class DrawArea {
       }
 
       if (e.code === "Space") {
-        $this.state.toggleJump();
+        $this.handleSpace();
       }
     });
   }
 
-  private render() {
-    const currentState = this.state.get();
-    this.drawer.render(currentState);
-    requestAnimationFrame(this.render.bind(this));
+  private handleSpace() {
+    const { current } = this.state.get();
+
+    if (current.game.status === GAME_STATUS.OVER) {
+      this.state.togglePlayAgain();
+      this.drawer.reset();
+      return;
+    }
+
+    this.state.toggleJump();
   }
 
-  private initState() {
-    this.interval = setInterval(this.state.calculate.bind(this.state), 10);
+  private play() {
+    this.state.calculate();
+    this.drawer.render(this.state.get());
+    requestAnimationFrame(this.play.bind(this));
   }
 
-  destroy() {
-    this.interval = null;
-  }
+  destroy() {}
 }
 
-const area = new DrawArea("game");
+const area = new Game("game");
 area.init();
