@@ -1,4 +1,4 @@
-import { GAME_STATUS, PLAYER_SIZE, BARRIER_SIZE } from "./constats";
+import { GAME_STATUS, PLAYER_CONFIG, BARRIER_SIZE } from "./constats";
 
 export type GAME_STATUS_KEY = "OVER" | "PAUSED" | "PLAY";
 export type GAME_STATUS_VALUE = "over" | "paused" | "play";
@@ -26,6 +26,7 @@ type PlayerStateType = {
   jump: {
     init: number;
   } | null;
+  frame: number;
 };
 
 type WorldStateType = {
@@ -100,6 +101,7 @@ export default class State {
       x: 0,
       y: 0,
       jump: null,
+      frame: 0,
     },
     barriers: [],
     world: {
@@ -174,11 +176,7 @@ export default class State {
     nextState.barriers = this.calculateBarriers(state);
 
     // collision
-    nextState.game.status = this.calculateCollision(
-      state,
-      nextState.player,
-      nextState.barriers
-    );
+    nextState.game.status = this.calculateCollision(state);
 
     this.state = {
       ...nextState,
@@ -204,36 +202,28 @@ export default class State {
     };
   }
 
-  private calculateCollision(
-    state: StateType,
-    player: PlayerStateType,
-    barriers: BarriersStateType
-  ) {
+  private calculateCollision(state: StateType) {
+    const { game, barriers, player } = state;
     const isGameOver = barriers.some((barrier) => {
-      const leftBottomPlayer = [player.x, player.y];
-      const rightTopPlayer = [
-        player.x + PLAYER_SIZE[0],
-        player.y + PLAYER_SIZE[1],
-      ];
+      const playerBottomSide =
+        player.y + PLAYER_CONFIG.size[1] - PLAYER_CONFIG.size[1] * 0.1;
+      const playerLeftSide = player.x + PLAYER_CONFIG.size[0] * 0.1;
+      const playerRightSide =
+        player.x + PLAYER_CONFIG.size[0] - PLAYER_CONFIG.size[0] * 0.1;
 
-      const leftBottomBarrier = [barrier.x, barrier.y];
-      const rightTopBarrier = [
-        barrier.x + BARRIER_SIZE[0],
-        barrier.y + BARRIER_SIZE[1],
-      ];
+      const barrierTopSide = barrier.y + BARRIER_SIZE[1] * 0.1;
+      const barrierLeftSide = barrier.x + BARRIER_SIZE[0] * 0.1;
+      const barrierRightSide =
+        barrier.x + BARRIER_SIZE[0] - BARRIER_SIZE[0] * 0.1;
 
-      const left = Math.max(leftBottomPlayer[0], leftBottomBarrier[0]);
-      const top = Math.min(rightTopPlayer[1], rightTopBarrier[1]);
-      const right = Math.min(rightTopPlayer[0], rightTopBarrier[0]);
-      const bottom = Math.max(leftBottomPlayer[1], leftBottomBarrier[1]);
-
-      const width = right - left;
-      const height = top - bottom;
-
-      return width > 0 && height > 0;
+      return playerBottomSide < barrierTopSide ||
+        playerRightSide < barrierLeftSide ||
+        playerLeftSide > barrierRightSide
+        ? false
+        : true;
     });
 
-    return isGameOver ? GAME_STATUS.OVER : state.game.status;
+    return isGameOver ? GAME_STATUS.OVER : game.status;
   }
 
   private calculateClouds(state: StateType) {
@@ -251,8 +241,8 @@ export default class State {
   }
 
   private calculatePlayer(state: StateType) {
-    const DEFAULT_X = PLAYER_SIZE[0] * 2;
-    const DEFAULT_Y = this.dimensions.h - PLAYER_SIZE[1] * 1.5;
+    const DEFAULT_X = PLAYER_CONFIG.size[0] * 2;
+    const DEFAULT_Y = this.dimensions.h - PLAYER_CONFIG.size[1] * 1.5;
     const isJumping = Boolean(state.player.jump);
 
     let nextY = DEFAULT_Y;
@@ -275,6 +265,10 @@ export default class State {
       x: DEFAULT_X,
       y: nextY,
       jump: nextJump,
+      frame:
+        state.player.frame < PLAYER_CONFIG.frames - 1
+          ? state.player.frame + 0.5
+          : 0,
     };
   }
 

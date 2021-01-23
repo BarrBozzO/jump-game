@@ -1,5 +1,7 @@
-import { GAME_STATUS, PLAYER_SIZE, BARRIER_SIZE } from "./constats";
+import { stat } from "fs";
+import { GAME_STATUS, PLAYER_CONFIG, BARRIER_SIZE } from "./constats";
 import { StateType, GAME_STATUS_VALUE } from "./StateManager";
+// import SKY_PICTURE from "./assets/sky.jpg";
 const SKY_PICTURE = require("./assets/sky.jpg");
 
 type LayerType = {
@@ -244,27 +246,31 @@ export default class Drawer {
 
     const ctx = this.getLayerContext("player");
 
-    ctx.clearRect(prev.player.x, prev.player.y, PLAYER_SIZE[0], PLAYER_SIZE[1]);
+    ctx.clearRect(
+      prev.player.x,
+      prev.player.y,
+      PLAYER_CONFIG.size[0],
+      PLAYER_CONFIG.size[1]
+    );
 
-    const image = document.getElementById(`player-move-0`);
+    const imageFrame = `player-move-${Math.floor(state.player.frame)}`;
+    const image = document.getElementById(imageFrame);
 
     if (image instanceof HTMLImageElement) {
       ctx.save();
       ctx.drawImage(
         image,
+        PLAYER_CONFIG.offset.x,
+        PLAYER_CONFIG.offset.y,
+        PLAYER_CONFIG.image.w,
+        PLAYER_CONFIG.image.h,
         state.player.x,
         state.player.y,
-        PLAYER_SIZE[0],
-        PLAYER_SIZE[1]
+        PLAYER_CONFIG.size[0],
+        PLAYER_CONFIG.size[1]
       );
       ctx.restore();
     }
-
-    // ctx.beginPath();
-    // ctx.rect(state.player.x, state.player.y, PLAYER_SIZE[0], PLAYER_SIZE[1]);
-    // ctx.fillStyle = Drawer.COLORS.player;
-    // ctx.fill();
-    // ctx.closePath();
   }
 
   private drawBarriers(state: StateType, prev: StateType) {
