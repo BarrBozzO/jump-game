@@ -309,7 +309,7 @@ export default class State {
   private calculateBarriers(state: StateType) {
     let result = [];
     result = state.barriers
-      .map((barrier, index) => {
+      .map((barrier) => {
         return {
           ...barrier,
           x:
@@ -329,13 +329,15 @@ export default class State {
       h: BARRIER_SIZE[1],
     };
 
+    // adding new barriers
     if (result.length < 1 && this.getRandomInt(0, 100) % 10 === 0) {
       result.push(barrirStateEntity);
-    } else if (result.length === 1) {
-      if (this.dimensions.w - result[0].x >= 150) {
-        if (this.getRandomInt(0, 100) % 30 === 0) {
-          result.push(barrirStateEntity);
-        }
+    } else if (
+      result.length === 1 &&
+      this.dimensions.w - result[0].x >= JUMP_LENGTH * 0.6
+    ) {
+      if (this.getRandomInt(0, 100) % 30 === 0) {
+        result.push(barrirStateEntity);
       }
     }
 
