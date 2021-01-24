@@ -1,8 +1,10 @@
-import { stat } from "fs";
-import { GAME_STATUS, PLAYER_CONFIG, BARRIER_SIZE } from "./constats";
+import {
+  GAME_STATUS,
+  PLAYER_CONFIG,
+  BARRIER_SIZE,
+  GROUND_SIZE,
+} from "./constats";
 import { StateType, GAME_STATUS_VALUE } from "./StateManager";
-// import SKY_PICTURE from "./assets/sky.jpg";
-const SKY_PICTURE = require("./assets/sky.jpg");
 
 type LayerType = {
   id: string;
@@ -18,7 +20,7 @@ export default class Drawer {
   private layersOrder: string[] = [];
 
   static COLORS = {
-    ground: "#ff0000",
+    ground: "#0F1326",
     sky: "blue",
     cloud: "#fff",
     player: "#ff33ee",
@@ -27,11 +29,17 @@ export default class Drawer {
   constructor(domElement: HTMLElement) {
     this.gameDomEl = domElement;
 
-    ["backdrop", "clouds", "score", "barriers", "player", "message"].forEach(
-      (layerId) => {
-        this.createLayer(layerId);
-      }
-    );
+    [
+      "backdrop",
+      "clouds",
+      "ground",
+      "score",
+      "barriers",
+      "player",
+      "message",
+    ].forEach((layerId) => {
+      this.createLayer(layerId);
+    });
 
     this.addAssets();
     this.drawBackdrop();
@@ -44,65 +52,63 @@ export default class Drawer {
     });
   }
 
+  private addImageAsset(container: HTMLElement, path: string, id: string) {
+    // backdrop sky
+    const img = document.createElement("img");
+    img.setAttribute("src", path);
+    img.setAttribute("id", id);
+    this.assets.push(img);
+    container.append(img);
+  }
+
   private addAssets() {
     const div = document.createElement("div");
     div.style["position"] = "absolute";
     div.style["left"] = "-9999px";
     div.style["top"] = "-9999px";
 
-    // backdrop sky
-    let img = document.createElement("img");
-    img.setAttribute("src", SKY_PICTURE);
-    img.setAttribute("id", "SKY_PICTURE");
-    this.assets.push(img);
-    div.append(img);
+    // backdrop
+    this.addImageAsset(div, require("./assets/backdrop/sky.png"), "sky");
+    this.addImageAsset(div, require("./assets/backdrop/rocks.png"), "rocks");
+    this.addImageAsset(
+      div,
+      require("./assets/backdrop/ground_1.png"),
+      "ground_1"
+    );
+    this.addImageAsset(
+      div,
+      require("./assets/backdrop/ground_2.png"),
+      "ground_2"
+    );
+    this.addImageAsset(
+      div,
+      require("./assets/backdrop/ground_3.png"),
+      "ground_3"
+    );
 
     // clouds
-    img = document.createElement("img");
-    img.setAttribute("src", require("./assets/cloud_1.png"));
-    img.setAttribute("id", "cloud_1");
-    this.assets.push(img);
-    div.append(img);
+    this.addImageAsset(
+      div,
+      require("./assets/backdrop/clouds_1.png"),
+      "cloud_1"
+    );
+    this.addImageAsset(
+      div,
+      require("./assets/backdrop/clouds_2.png"),
+      "cloud_2"
+    );
 
-    img = document.createElement("img");
-    img.setAttribute("src", require("./assets/cloud_2.png"));
-    img.setAttribute("id", "cloud_2");
-    this.assets.push(img);
-    div.append(img);
-
-    img = document.createElement("img");
-    img.setAttribute("src", require("./assets/cloud_3.png"));
-    img.setAttribute("id", "cloud_3");
-    this.assets.push(img);
-    div.append(img);
-
-    img = document.createElement("img");
-    img.setAttribute("src", require("./assets/cloud_5.png"));
-    img.setAttribute("id", "cloud_5");
-    this.assets.push(img);
-    div.append(img);
-
-    img = document.createElement("img");
-    img.setAttribute("src", require("./assets/cloud_4.png"));
-    img.setAttribute("id", "cloud_4");
-    this.assets.push(img);
-    div.append(img);
-
-    // monster
-    img = document.createElement("img");
-    img.setAttribute("src", require("./assets/monster.png"));
-    img.setAttribute("id", "monster");
-    this.assets.push(img);
-    div.append(img);
+    // barrier
+    this.addImageAsset(div, require("./assets/barrier/monster.png"), "monster");
 
     // player
-    const frames = require(`./assets/player/move/*.png`);
+    let frames = require(`./assets/player/move/*.png`);
     Object.values(frames).forEach((frame, index) => {
-      img = document.createElement("img");
-      img.setAttribute("src", frame as string);
-      img.setAttribute("id", "player-move-" + index);
-      this.assets.push(img);
-      div.append(img);
+      this.addImageAsset(div, frame as string, "player-move-" + index);
+    });
+    frames = require(`./assets/player/jump/*.png`);
+    Object.values(frames).forEach((frame, index) => {
+      this.addImageAsset(div, frame as string, "player-jump-" + index);
     });
 
     document.body.append(div);
@@ -136,6 +142,7 @@ export default class Drawer {
 
   render({ current: currentState, prev: prevState }) {
     this.drawClouds(currentState, prevState);
+    this.drawGround(currentState, prevState);
     this.drawPlayer(currentState, prevState);
     this.drawBarriers(currentState, prevState);
     this.drawScore(currentState.score, currentState.game.status);
@@ -222,18 +229,30 @@ export default class Drawer {
 
     const { w, h } = this.dimensions;
 
-    // sky
-    const image = document.getElementById("SKY_PICTURE") as HTMLImageElement;
-    image.onload = () => {
+    window.addEventListener("load", (data) => {
+      const image = document.getElementById("sky") as HTMLImageElement;
       ctx.drawImage(image, 0, 0, w, h);
 
-      // ground
-      ctx.beginPath();
-      ctx.rect(0, h - 40, w, 40);
-      ctx.fillStyle = Drawer.COLORS.ground;
-      ctx.fill();
-      ctx.closePath();
-    };
+      const imageRocks = document.getElementById("rocks") as HTMLImageElement;
+      ctx.drawImage(imageRocks, 0, 0, w, h);
+    });
+  }
+
+  private drawGround(state: StateType, prev: StateType) {
+    const ctx = this.getLayerContext("ground");
+
+    const { w, h } = this.dimensions;
+
+    ctx.clearRect(0, 0, w, h);
+
+    state.ground.forEach((groundLayer, index) => {
+      const offsetX = Math.abs(groundLayer.x);
+      const image = document.getElementById(
+        `ground_${index + 1}`
+      ) as HTMLImageElement;
+      ctx.drawImage(image, -offsetX, 0, w, h);
+      ctx.drawImage(image, w - offsetX, 0, w, h);
+    });
   }
 
   private drawPlayer(state: StateType, prev: StateType) {
@@ -253,11 +272,21 @@ export default class Drawer {
       PLAYER_CONFIG.size[1]
     );
 
-    const imageFrame = `player-move-${Math.floor(state.player.frame)}`;
+    const frame = Math.floor(state.player.frame);
+    const imageFrame = state.player.jump
+      ? `player-jump-${frame % 6}`
+      : `player-move-${frame}`;
     const image = document.getElementById(imageFrame);
 
     if (image instanceof HTMLImageElement) {
-      ctx.save();
+      if (process.env.NODE_ENV === "development") {
+        ctx.fillRect(
+          state.player.x,
+          state.player.y,
+          PLAYER_CONFIG.size[0],
+          PLAYER_CONFIG.size[1]
+        );
+      }
       ctx.drawImage(
         image,
         PLAYER_CONFIG.offset.x,
@@ -269,7 +298,6 @@ export default class Drawer {
         PLAYER_CONFIG.size[0],
         PLAYER_CONFIG.size[1]
       );
-      ctx.restore();
     }
   }
 

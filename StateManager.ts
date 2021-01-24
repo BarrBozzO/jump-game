@@ -1,4 +1,9 @@
-import { GAME_STATUS, PLAYER_CONFIG, BARRIER_SIZE } from "./constats";
+import {
+  GAME_STATUS,
+  PLAYER_CONFIG,
+  BARRIER_SIZE,
+  GROUND_SIZE,
+} from "./constats";
 
 export type GAME_STATUS_KEY = "OVER" | "PAUSED" | "PLAY";
 export type GAME_STATUS_VALUE = "over" | "paused" | "play";
@@ -10,6 +15,7 @@ export type StateType = {
   world: WorldStateType;
   game: GameStateType;
   score: number;
+  ground: GroundStateType;
 };
 
 type CloudsStateType = {
@@ -35,6 +41,10 @@ type WorldStateType = {
   time: number;
 };
 
+type GroundStateType = {
+  x: number;
+}[];
+
 type GameStateType = {
   status: GAME_STATUS_VALUE;
 };
@@ -55,46 +65,46 @@ export default class State {
   static getInitState = () => ({
     clouds: [
       {
-        offsetX: 100,
-        x: 100,
-        y: 20,
+        offsetX: 0,
+        x: 0,
+        y: 0,
         type: 1,
-        w: 190,
+        w: 900,
       },
       {
-        offsetX: 20,
-        x: null,
-        y: 80,
+        offsetX: 0,
+        x: 500,
+        y: 220,
+        type: 2,
+        w: 200,
+      },
+      {
+        offsetX: 0,
+        x: 800,
+        y: 60,
         type: 2,
         w: 400,
       },
       {
-        offsetX: 200,
-        x: 500,
-        y: 250,
-        type: 3,
-        w: 150,
+        offsetX: 0,
+        x: 1280,
+        y: 0,
+        type: 1,
+        w: 500,
       },
       {
-        offsetX: 500,
-        x: 900,
-        y: 100,
-        type: 4,
-        w: 210,
+        offsetX: 0,
+        x: 1700,
+        y: 150,
+        type: 2,
+        w: 200,
       },
       {
-        offsetX: 500,
-        x: 1100,
+        offsetX: 0,
+        x: 1500,
         y: 200,
         type: 2,
-        w: 140,
-      },
-      {
-        offsetX: 240,
-        x: null,
-        y: 90,
-        type: 5,
-        w: 150,
+        w: 100,
       },
     ],
     player: {
@@ -113,6 +123,13 @@ export default class State {
       status: GAME_STATUS.PLAY as GAME_STATUS_VALUE,
     },
     score: 0,
+    ground: [
+      {
+        x: 0,
+      },
+      { x: 0 },
+      { x: 0 },
+    ],
   });
 
   private prevState: string = "";
@@ -168,6 +185,9 @@ export default class State {
 
     // clouds
     nextState.clouds = this.calculateClouds(state);
+
+    // ground
+    nextState.ground = this.calculateGround(state);
 
     // player
     nextState.player = this.calculatePlayer(state);
@@ -229,10 +249,11 @@ export default class State {
   private calculateClouds(state: StateType) {
     return state.clouds.map((cloud, index) => {
       const { w, h } = this.dimensions;
+
       const nextX =
-        cloud.x === null || cloud.x < -(cloud.w * 2)
-          ? w + cloud.w + cloud.offsetX
-          : cloud.x - State.CLOUD_SPEED * cloud.type * 0.1;
+        cloud.x < -cloud.w
+          ? w + cloud.offsetX
+          : cloud.x - State.CLOUD_SPEED * 0.1;
       return {
         ...cloud,
         x: nextX,
@@ -240,9 +261,20 @@ export default class State {
     });
   }
 
+  private calculateGround(state: StateType) {
+    return state.ground.map((ground, index) => {
+      return {
+        x:
+          Math.abs(ground.x) >= this.dimensions.w
+            ? 0
+            : ground.x - Math.pow(index, 2) /** 0.1*/,
+      };
+    });
+  }
+
   private calculatePlayer(state: StateType) {
     const DEFAULT_X = PLAYER_CONFIG.size[0] * 2;
-    const DEFAULT_Y = this.dimensions.h - PLAYER_CONFIG.size[1] * 1.5;
+    const DEFAULT_Y = this.dimensions.h - PLAYER_CONFIG.size[1] - GROUND_SIZE;
     const isJumping = Boolean(state.player.jump);
 
     let nextY = DEFAULT_Y;
@@ -266,7 +298,7 @@ export default class State {
       y: nextY,
       jump: nextJump,
       frame:
-        state.player.frame < PLAYER_CONFIG.frames - 1
+        state.player.frame < PLAYER_CONFIG.frames.run - 1
           ? state.player.frame + 0.5
           : 0,
     };

@@ -9,8 +9,11 @@ export const GAME_STATUS: {
 };
 
 export const PLAYER_CONFIG = {
-  size: [60, 80],
-  frames: 12,
+  size: [90, 120],
+  frames: {
+    run: 12,
+    jump: 6,
+  },
   offset: {
     x: 190,
     y: 160,
@@ -20,4 +23,5 @@ export const PLAYER_CONFIG = {
     h: 580,
   },
 };
-export const BARRIER_SIZE = [55, 80];
+export const BARRIER_SIZE = [82, 120];
+export const GROUND_SIZE = 40;
