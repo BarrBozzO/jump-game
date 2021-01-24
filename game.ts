@@ -21,7 +21,6 @@ class Game {
 
   init() {
     const $this = this;
-    this.audio.playTheme();
     this.play();
 
     document.addEventListener("keydown", (e) => {
@@ -49,7 +48,9 @@ class Game {
 
   private play() {
     this.state.calculate();
-    this.drawer.render(this.state.get());
+    const currentState = this.state.get();
+    this.audio.control(currentState);
+    this.drawer.render(currentState);
     requestAnimationFrame(this.play.bind(this));
   }
 
