@@ -25,3 +25,4 @@ export const PLAYER_CONFIG = {
 };
 export const BARRIER_SIZE = [82, 120];
 export const GROUND_SIZE = 40;
+export const JUMP_LENGTH = 600;

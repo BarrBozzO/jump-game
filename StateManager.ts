@@ -3,6 +3,7 @@ import {
   PLAYER_CONFIG,
   BARRIER_SIZE,
   GROUND_SIZE,
+  JUMP_LENGTH,
 } from "./constats";
 
 export type GAME_STATUS_KEY = "OVER" | "PAUSED" | "PLAY";
@@ -58,9 +59,8 @@ type BarriersStateType = {
 
 export default class State {
   static GAME_SPEED = 10;
-  static BARRIER_SPEED = 10;
+  static BARRIER_SPEED = 5;
   static CLOUD_SPEED = 2;
-  static JUMP_LENGTH = 300;
 
   static getInitState = () => ({
     clouds: [
@@ -224,17 +224,18 @@ export default class State {
 
   private calculateCollision(state: StateType) {
     const { game, barriers, player } = state;
+    const DEC_RATE = 0.15;
     const isGameOver = barriers.some((barrier) => {
       const playerBottomSide =
-        player.y + PLAYER_CONFIG.size[1] - PLAYER_CONFIG.size[1] * 0.1;
-      const playerLeftSide = player.x + PLAYER_CONFIG.size[0] * 0.1;
+        player.y + PLAYER_CONFIG.size[1] - PLAYER_CONFIG.size[1] * DEC_RATE;
+      const playerLeftSide = player.x + PLAYER_CONFIG.size[0] * DEC_RATE;
       const playerRightSide =
-        player.x + PLAYER_CONFIG.size[0] - PLAYER_CONFIG.size[0] * 0.1;
+        player.x + PLAYER_CONFIG.size[0] - PLAYER_CONFIG.size[0] * DEC_RATE;
 
-      const barrierTopSide = barrier.y + BARRIER_SIZE[1] * 0.1;
-      const barrierLeftSide = barrier.x + BARRIER_SIZE[0] * 0.1;
+      const barrierTopSide = barrier.y + BARRIER_SIZE[1] * DEC_RATE;
+      const barrierLeftSide = barrier.x + BARRIER_SIZE[0] * DEC_RATE;
       const barrierRightSide =
-        barrier.x + BARRIER_SIZE[0] - BARRIER_SIZE[0] * 0.1;
+        barrier.x + BARRIER_SIZE[0] - BARRIER_SIZE[0] * DEC_RATE;
 
       return playerBottomSide < barrierTopSide ||
         playerRightSide < barrierLeftSide ||
@@ -283,11 +284,10 @@ export default class State {
     if (isJumping) {
       // y = (-x^2 + 50x) / 5
       const rangeFromJumpStart = state.world.x - state.player.jump.init;
-      if (rangeFromJumpStart <= State.JUMP_LENGTH) {
+      if (rangeFromJumpStart <= JUMP_LENGTH) {
         nextY -= Math.round(
-          (State.JUMP_LENGTH * rangeFromJumpStart -
-            Math.pow(rangeFromJumpStart, 2)) /
-            (State.JUMP_LENGTH * 0.3)
+          (JUMP_LENGTH * rangeFromJumpStart - Math.pow(rangeFromJumpStart, 2)) /
+            (JUMP_LENGTH * 0.5)
         );
         nextJump = state.player.jump;
       }

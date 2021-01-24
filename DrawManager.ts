@@ -1,9 +1,4 @@
-import {
-  GAME_STATUS,
-  PLAYER_CONFIG,
-  BARRIER_SIZE,
-  GROUND_SIZE,
-} from "./constats";
+import { GAME_STATUS, PLAYER_CONFIG, BARRIER_SIZE } from "./constats";
 import { StateType, GAME_STATUS_VALUE } from "./StateManager";
 
 type LayerType = {
@@ -161,7 +156,7 @@ export default class Drawer {
       return;
     }
 
-    ctx.font = "18px sans-serif";
+    ctx.font = "20px sans-serif";
     ctx.strokeStyle = " #2e2e2e";
     ctx.lineWidth = 2;
     const text = "score: " + score;
@@ -186,20 +181,29 @@ export default class Drawer {
     ctx.clearRect(0, 0, w, h);
 
     if (state.game.status === GAME_STATUS.OVER) {
+      ctx.save();
+
+      ctx.globalAlpha = 0.5;
+      ctx.fillRect(w / 2 - 150, h / 2 - 100, 300, 150);
+
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff";
       ctx.font = "24px sans-serif";
       const message = "GAME OVER";
       const textMes = ctx.measureText(message);
-      ctx.fillText(message, w / 2 - textMes.width / 2, h / 2);
+      ctx.fillText(message, w / 2 - textMes.width / 2, h / 2 - 50);
 
       ctx.font = "14px sans-serif";
       const messageScore = `YOUR SCORE IS ${state.score}`;
       const textMesScore = ctx.measureText(messageScore);
-      ctx.fillText(messageScore, w / 2 - textMesScore.width / 2, h / 2 + 24);
+      ctx.fillText(messageScore, w / 2 - textMesScore.width / 2, h / 2 - 25);
 
       ctx.font = "14px sans-serif";
       const messageSpace = `Press SPACE to play again`;
       const textMesSpace = ctx.measureText(messageSpace);
-      ctx.fillText(messageSpace, w / 2 - textMesSpace.width / 2, h / 2 + 48);
+      ctx.fillText(messageSpace, w / 2 - textMesSpace.width / 2, h / 2);
+
+      ctx.restore();
     }
   }
 
@@ -311,16 +315,17 @@ export default class Drawer {
 
     const ctx = this.getLayerContext("barriers");
 
-    prev.barriers.forEach((barrier, index) => {
+    prev.barriers.forEach((barrier) => {
       ctx.clearRect(barrier.x + 2, barrier.y, BARRIER_SIZE[0], BARRIER_SIZE[1]);
     });
 
-    state.barriers.forEach((barrier, index) => {
-      const image = document.getElementById(`monster`);
+    state.barriers.forEach((barrier) => {
+      const image = document.getElementById("monster");
 
       if (image instanceof HTMLImageElement) {
         ctx.save();
         ctx.scale(-1, 1);
+        ctx.fillRect(-barrier.x, barrier.y, -BARRIER_SIZE[0], BARRIER_SIZE[1]);
         ctx.drawImage(
           image,
           -barrier.x,
