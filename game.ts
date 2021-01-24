@@ -1,11 +1,13 @@
 import StateManager from "./StateManager";
 import DrawManager from "./DrawManager";
+import AudioManager from "./AudioManager";
 import { GAME_STATUS } from "./constats";
 
 class Game {
   private gameDomEl: HTMLElement;
   private drawer: DrawManager;
   private state: StateManager;
+  private audio: AudioManager;
 
   constructor(domId: string = "") {
     this.gameDomEl = document.getElementById(`${domId}`) as HTMLElement;
@@ -14,10 +16,12 @@ class Game {
       w: this.gameDomEl.offsetWidth,
       h: this.gameDomEl.offsetHeight,
     });
+    this.audio = new AudioManager();
   }
 
   init() {
     const $this = this;
+    this.audio.playTheme();
     this.play();
 
     document.addEventListener("keydown", (e) => {
