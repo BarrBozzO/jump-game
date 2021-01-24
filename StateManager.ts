@@ -40,6 +40,7 @@ type WorldStateType = {
   x: number;
   y: number;
   time: number;
+  speedRate: number;
 };
 
 type GroundStateType = {
@@ -60,6 +61,7 @@ type BarriersStateType = {
 export default class State {
   static GAME_SPEED = 10;
   static BARRIER_SPEED = 5;
+  static MAX_SPEED = 20;
   static CLOUD_SPEED = 2;
 
   static getInitState = () => ({
@@ -118,6 +120,7 @@ export default class State {
       x: 0,
       y: 0,
       time: 0,
+      speedRate: 1,
     },
     game: {
       status: GAME_STATUS.PLAY as GAME_STATUS_VALUE,
@@ -206,8 +209,6 @@ export default class State {
   }
 
   private resetState() {
-    // debugger;
-    // this.prevState = JSON.stringify(this.state);
     this.state = State.getInitState();
   }
 
@@ -218,6 +219,7 @@ export default class State {
   private calculateWorld(state: StateType) {
     return {
       ...state.world,
+      speedRate: Math.max(Math.round(state.score / 1000), 1),
       x: state.world.x + State.GAME_SPEED,
     };
   }
@@ -310,7 +312,12 @@ export default class State {
       .map((barrier, index) => {
         return {
           ...barrier,
-          x: barrier.x - State.BARRIER_SPEED,
+          x:
+            barrier.x -
+            Math.min(
+              State.BARRIER_SPEED + state.world.speedRate,
+              State.MAX_SPEED
+            ),
         };
       })
       .filter((barrier) => barrier.x + barrier.w >= 0);
