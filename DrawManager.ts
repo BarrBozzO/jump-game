@@ -259,6 +259,12 @@ export default class Drawer {
     });
   }
 
+  private drawDevRect(ctx, x, y, w, h) {
+    if (process.env.NODE_ENV === "development") {
+      ctx.fillRect(x, y, w, h);
+    }
+  }
+
   private drawPlayer(state: StateType, prev: StateType) {
     if (
       state.game.status !== GAME_STATUS.PLAY &&
@@ -283,14 +289,13 @@ export default class Drawer {
     const image = document.getElementById(imageFrame);
 
     if (image instanceof HTMLImageElement) {
-      if (process.env.NODE_ENV === "development") {
-        ctx.fillRect(
-          state.player.x,
-          state.player.y,
-          PLAYER_CONFIG.size[0],
-          PLAYER_CONFIG.size[1]
-        );
-      }
+      this.drawDevRect(
+        ctx,
+        state.player.x,
+        state.player.y,
+        PLAYER_CONFIG.size[0],
+        PLAYER_CONFIG.size[1]
+      );
       ctx.drawImage(
         image,
         PLAYER_CONFIG.offset.x,
@@ -325,7 +330,13 @@ export default class Drawer {
       if (image instanceof HTMLImageElement) {
         ctx.save();
         ctx.scale(-1, 1);
-        ctx.fillRect(-barrier.x, barrier.y, -BARRIER_SIZE[0], BARRIER_SIZE[1]);
+        this.drawDevRect(
+          ctx,
+          -barrier.x,
+          barrier.y,
+          -BARRIER_SIZE[0],
+          BARRIER_SIZE[1]
+        );
         ctx.drawImage(
           image,
           -barrier.x,
