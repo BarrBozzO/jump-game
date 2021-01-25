@@ -6,10 +6,13 @@
   "author": "Constantine <barr.develop@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "dev": "parcel serve ./index.html"
+    "dev": "parcel serve ./index.html",
+    "build": "parcel build ./index.html",
+    "deploy": "firebase deploy"
   },
   "devDependencies": {
     "@types/node": "^14.14.22",
+    "cssnano": "^4.1.10",
     "typescript": "^4.1.3"
   }
 }
